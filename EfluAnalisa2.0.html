@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EfluAnalisa – Validador de Efluentes Industriais</title>
+<style>
+  :root{
+    --branco:#FFFFFF; --verde-fundo:#F0F9F0; --verde-claro:#A8D5BA;
+    --verde-sucesso:#4CAF50; --vermelho-erro:#E57373; --cinza-informativo:#90A4AE;
+    --texto-principal:#2E3B2E; --texto-secundario:#6B7A6B;
+    --sombra:0 2px 8px rgba(0,0,0,.06); --borda:#D0DCD0;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    background:var(--branco);color:var(--texto-principal);line-height:1.6;padding:24px;
+  }
+  .container{max-width:980px;margin:0 auto}
+  header{
+    text-align:center;margin-bottom:24px;padding:24px;background:var(--verde-fundo);
+    border-radius:12px;border:1px solid var(--verde-claro);
+  }
+  header h1{font-size:1.8rem}
+  header p{color:var(--texto-secundario);font-size:.95rem}
+  .card-section{
+    background:var(--branco);border:1px solid var(--borda);border-radius:10px;
+    padding:16px 18px;margin-bottom:16px;box-shadow:var(--sombra);
+  }
+  .card-section h2{
+    font-size:1.02rem;margin-bottom:12px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .card-section h2 .badge{
+    background:var(--verde-claro);color:var(--branco);
+    font-size:.72rem;padding:2px 8px;border-radius:20px;font-weight:600;
+  }
+  .grid-form{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;
+  }
+  .campo{display:flex;flex-direction:column}
+  .campo label{font-weight:600;font-size:.85rem;margin-bottom:4px}
+  .campo .hint{font-size:.74rem;color:var(--texto-secundario);margin-top:2px}
+  .campo input,.campo select{
+    padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;
+    font-size:.95rem;outline:none;transition:border-color .2s;background:var(--branco);
+  }
+  .campo input:focus,.campo select:focus{border-color:var(--verde-claro)}
+  .btn-analisar{
+    display:block;width:100%;padding:14px;background:var(--verde-claro);color:var(--branco);
+    font-size:1.05rem;font-weight:600;border:none;border-radius:10px;cursor:pointer;
+    transition:background .2s;margin:8px 0 24px;
+  }
+  .btn-analisar:hover{background:#8FC6A8}
+  .oculto{display:none}
+
+  /* Upload de imagens */
+  .upload-box{
+    border:2px dashed var(--borda);border-radius:8px;padding:10px;
+    text-align:center;cursor:pointer;transition:border-color .2s,background .2s;
+    font-size:.82rem;color:var(--texto-secundario);
+  }
+  .upload-box:hover{border-color:var(--verde-claro);background:var(--verde-fundo)}
+  .upload-box input{display:none}
+  .preview-img{
+    max-width:100%;max-height:120px;border-radius:6px;margin-top:8px;
+    border:1px solid var(--borda);display:block;
+  }
+  .btn-ocr{
+    margin-top:8px;padding:8px 12px;border-radius:8px;border:1.5px solid var(--verde-claro);
+    background:var(--branco);cursor:pointer;font-size:.82rem;font-weight:600;
+    color:var(--texto-principal);transition:background .2s;width:100%;
+  }
+  .btn-ocr:hover{background:var(--verde-fundo)}
+  .btn-ocr:disabled{opacity:.6;cursor:wait}
+
+  #ocrProgress{
+    margin-top:12px;padding:10px 14px;background:#E3F2FD;border-left:4px solid #2196F3;
+    border-radius:6px;font-size:.85rem;
+  }
+  #ocrProgress .barra{
+    height:6px;background:#BBDEFB;border-radius:6px;overflow:hidden;margin-top:6px;
+  }
+  #ocrProgress .barra div{height:100%;background:#2196F3;width:0;transition:width .3s}
+  #ocrDetalhes{margin-top:12px;font-size:.82rem}
+  #ocrDetalhes summary{cursor:pointer;color:var(--texto-secundario);font-weight:600}
+  #ocrTexto{
+    background:#F5F5F5;padding:10px;border-radius:6px;margin-top:6px;
+    max-height:180px;overflow:auto;white-space:pre-wrap;font-size:.78rem;
+    font-family:monospace;
+  }
+
+  /* Laudo */
+  .laudo-header{
+    background:var(--verde-fundo);padding:16px 18px;border-radius:10px;
+    border:1px solid var(--verde-claro);margin-bottom:16px;
+  }
+  .laudo-header h2{font-size:1.1rem;margin-bottom:8px}
+  .laudo-header .meta{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    gap:6px 18px;font-size:.88rem;
+  }
+  .laudo-header .meta span b{color:var(--texto-secundario);font-weight:600}
+  .laudo-header .meta span{color:var(--texto-principal)}
+
+  .resumo-geral{
+    padding:14px;border-radius:10px;font-weight:600;text-align:center;
+    margin-bottom:18px;font-size:1.02rem;
+  }
+  .resumo-geral.aprovado{background:#E8F5E9;color:#2E7D32;border:1px solid var(--verde-sucesso)}
+  .resumo-geral.reprovado{background:#FFEBEE;color:#C62828;border:1px solid var(--vermelho-erro)}
+
+  .cartao-resultado{
+    display:flex;align-items:flex-start;gap:14px;background:var(--branco);
+    padding:14px 16px;border-radius:10px;border-left:6px solid var(--cinza-informativo);
+    box-shadow:var(--sombra);margin-bottom:10px;
+  }
+  .cartao-resultado.aprovado{border-left-color:var(--verde-sucesso)}
+  .cartao-resultado.reprovado{border-left-color:var(--vermelho-erro)}
+  .cartao-resultado.informativo{border-left-color:var(--cinza-informativo)}
+  .icone{font-size:1.35rem;font-weight:bold;line-height:1.2}
+  .icone.aprovado{color:var(--verde-sucesso)}
+  .icone.reprovado{color:var(--vermelho-erro)}
+  .icone.informativo{color:var(--cinza-informativo)}
+  .detalhes{flex:1}
+  .detalhes .nome-parametro{font-weight:600}
+  .detalhes .valor{color:var(--texto-secundario);font-size:.9rem}
+  .detalhes .criterio,.detalhes .ref{font-size:.84rem;color:var(--texto-secundario);margin-top:2px}
+  .detalhes .ref{font-style:italic}
+  .detalhes .recomendacao{
+    margin-top:6px;padding:8px 10px;background:#FFF8E1;border-left:3px solid #FFB300;
+    border-radius:4px;font-size:.85rem;color:#6D4C41;
+  }
+  .detalhes .recomendacao b{color:#4E342E}
+
+  .cargas-card{
+    background:var(--verde-fundo);border:1px solid var(--verde-claro);
+    border-radius:10px;padding:14px 16px;margin:16px 0;
+  }
+  .cargas-card h3{font-size:.98rem;margin-bottom:10px}
+  .cargas-lista{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;
+  }
+  .carga-item{
+    background:var(--branco);border-radius:8px;padding:10px 12px;
+    border:1px solid var(--borda);font-size:.88rem;
+  }
+  .carga-item b{display:block;font-size:1.05rem;color:var(--verde-sucesso)}
+
+  /* Evidências no laudo */
+  .evidencias{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+    gap:12px;margin:16px 0;
+  }
+  .evidencia-item{
+    background:var(--branco);border:1px solid var(--borda);border-radius:8px;
+    padding:10px;text-align:center;
+  }
+  .evidencia-item .titulo{
+    font-size:.78rem;font-weight:600;color:var(--texto-secundario);
+    margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;
+  }
+  .evidencia-item img{max-width:100%;max-height:220px;border-radius:6px}
+
+  .acoes{
+    display:flex;flex-wrap:wrap;gap:10px;margin-top:20px;padding-top:16px;
+    border-top:1px dashed var(--borda);
+  }
+  .btn-sec{
+    padding:10px 16px;border-radius:8px;font-size:.9rem;font-weight:600;
+    cursor:pointer;border:1.5px solid var(--verde-claro);background:var(--branco);
+    color:var(--texto-principal);transition:background .2s;
+  }
+  .btn-sec:hover{background:var(--verde-fundo)}
+  .btn-sec.primario{background:var(--verde-claro);color:var(--branco);border-color:var(--verde-claro)}
+  .btn-sec.primario:hover{background:#8FC6A8}
+
+  /* Histórico */
+  #historicoSection{margin-top:32px}
+  .hist-item{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:10px 14px;border:1px solid var(--borda);border-radius:8px;
+    margin-bottom:8px;font-size:.88rem;background:var(--branco);
+  }
+  .hist-item .info{color:var(--texto-secundario)}
+  .hist-item .status{
+    padding:2px 10px;border-radius:20px;font-weight:600;font-size:.78rem;
+  }
+  .hist-item .status.aprovado{background:#E8F5E9;color:#2E7D32}
+  .hist-item .status.reprovado{background:#FFEBEE;color:#C62828}
+  .hist-item .btn-mini{
+    background:none;border:none;color:var(--vermelho-erro);cursor:pointer;
+    font-size:.85rem;margin-left:8px;
+  }
+  .assinatura{
+    margin-top:24px;padding-top:16px;border-top:1px solid var(--borda);
+    font-size:.85rem;color:var(--texto-secundario);text-align:center;
+  }
+  .assinatura .linha{
+    width:280px;margin:36px auto 6px;border-top:1px solid var(--texto-secundario);
+  }
+  .assinatura img{
+    max-height:60px;display:block;margin:0 auto;
+  }
+
+  /* Impressão */
+  @media print{
+    body{padding:0;font-size:.9rem}
+    .input-area,.acoes,#historicoSection,header p{display:none !important}
+    .card-section{border:none;box-shadow:none;padding:0;margin:0}
+    .laudo-header{border:1px solid #ccc}
+    .cartao-resultado{box-shadow:none;break-inside:avoid;border:1px solid #eee}
+    .resumo-geral{break-inside:avoid}
+    .cargas-card{break-inside:avoid}
+    .evidencias{break-inside:avoid}
+    .container{max-width:100%}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>EfluAnalisa</h1>
+    <p>Validador de Efluentes Industriais — CONAMA 430/2011</p>
+  </header>
+
+  <!-- ========== ÁREA DE ENTRADA ========== -->
+  <div class="input-area">
+
+    <section class="card-section">
+      <h2>Identificação da amostra</h2>
+      <div class="grid-form">
+        <div class="campo">
+          <label for="ponto">Ponto de coleta</label>
+          <input id="ponto" placeholder="Ex.: Saída da ETE – Ponto 01">
+        </div>
+        <div class="campo">
+          <label for="dataColeta">Data da coleta</label>
+          <input id="dataColeta" type="date">
+        </div>
+        <div class="campo">
+          <label for="responsavel">Responsável técnico</label>
+          <input id="responsavel" placeholder="Nome completo">
+        </div>
+        <div class="campo">
+          <label for="registro">Registro profissional</label>
+          <input id="registro" placeholder="CREA / CRQ">
+        </div>
+      </div>
+    </section>
+
+    <section class="card-section">
+      <h2>Condições do lançamento</h2>
+      <div class="grid-form">
+        <div class="campo">
+          <label for="tipoLancamento">Destino do efluente</label>
+          <select id="tipoLancamento">
+            <option value="corpo">Corpo receptor (rio, lago, mar)</option>
+            <option value="rede">Rede pública de esgoto</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label for="vazao">Vazão (m³/dia)</label>
+          <input id="vazao" type="number" step="0.01" placeholder="Ex.: 250">
+          <span class="hint">Usada para cálculo de carga poluidora</span>
+        </div>
+        <div class="campo">
+          <label for="segmento">Segmento industrial (opcional)</label>
+          <select id="segmento">
+            <option value="">— Não especificado —</option>
+            <option>Alimentos e bebidas</option>
+            <option>Laticínios</option>
+            <option>Abatedouros / frigoríficos</option>
+            <option>Têxtil</option>
+            <option>Galvanoplastia / metalurgia</option>
+            <option>Farmacêutico</option>
+            <option>Químico / petroquímico</option>
+            <option>Papel e celulose</option>
+            <option>Esgoto sanitário</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== EVIDÊNCIAS VISUAIS ========== -->
+    <section class="card-section">
+      <h2>Evidências visuais <span class="badge">opcional · OCR</span></h2>
+      <div class="grid-form">
+        <div class="campo">
+          <label>📷 Foto do ponto de coleta</label>
+          <label class="upload-box">
+            <input type="file" accept="image/*" capture="environment"
+                   onchange="carregarImagem(this, 'amostra')">
+            Clique ou tire foto
+          </label>
+          <div id="previewAmostra"></div>
+          <span class="hint">Anexa ao laudo impresso</span>
+        </div>
+
+        <div class="campo">
+          <label>📄 Foto/scan do laudo do laboratório</label>
+          <label class="upload-box">
+            <input type="file" accept="image/*" capture="environment"
+                   onchange="carregarImagem(this, 'laudo')">
+            Clique ou tire foto
+          </label>
+          <div id="previewLaudo"></div>
+          <button id="btnOcr" class="btn-ocr" onclick="executarOCR()" disabled>
+            🔍 Extrair dados do laudo (OCR)
+          </button>
+          <span class="hint">Preenche o formulário automaticamente</span>
+        </div>
+
+        <div class="campo">
+          <label>✍️ Assinatura digitalizada</label>
+          <label class="upload-box">
+            <input type="file" accept="image/*"
+                   onchange="carregarImagem(this, 'assinatura')">
+            Clique para enviar
+          </label>
+          <div id="previewAssinatura"></div>
+          <span class="hint">Aparece sobre a linha de assinatura</span>
+        </div>
+      </div>
+
+      <div id="ocrProgress" class="oculto">
+        <span id="ocrStatus">Processando…</span>
+        <div class="barra"><div id="ocrBarra"></div></div>
+      </div>
+
+      <details id="ocrDetalhes" class="oculto">
+        <summary>Texto extraído pelo OCR (verifique os valores)</summary>
+        <pre id="ocrTexto"></pre>
+      </details>
+    </section>
+
+    <section class="card-section">
+      <h2>Parâmetros analisados <span class="badge">CONAMA 430 · Art. 16</span></h2>
+      <div class="grid-form">
+        <div class="campo">
+          <label for="ph">pH</label>
+          <input id="ph" type="number" step="0.1" placeholder="Ex.: 7.2">
+          <span class="hint">Faixa: 5,0 a 9,0</span>
+        </div>
+        <div class="campo">
+          <label for="temp">Temperatura (°C)</label>
+          <input id="temp" type="number" step="0.1" placeholder="Ex.: 28">
+          <span class="hint">Limite: &lt; 40 °C</span>
+        </div>
+        <div class="campo">
+          <label for="dboEntrada">DBO entrada (mg/L)</label>
+          <input id="dboEntrada" type="number" step="0.1" placeholder="Ex.: 300">
+          <span class="hint">Para cálculo de eficiência</span>
+        </div>
+        <div class="campo">
+          <label for="dbo">DBO saída (mg/L)</label>
+          <input id="dbo" type="number" step="0.1" placeholder="Ex.: 80">
+          <span class="hint">Limite: ≤ 120 mg/L</span>
+        </div>
+        <div class="campo">
+          <label for="dqo">DQO (mg/L)</label>
+          <input id="dqo" type="number" step="0.1" placeholder="Ex.: 200">
+          <span class="hint">Informativo</span>
+        </div>
+        <div class="campo">
+          <label for="sst">SST (mg/L)</label>
+          <input id="sst" type="number" step="0.1" placeholder="Ex.: 45">
+          <span class="hint">Informativo</span>
+        </div>
+        <div class="campo">
+          <label for="sed">Sólidos sedimentáveis (mL/L)</label>
+          <input id="sed" type="number" step="0.1" placeholder="Ex.: 0.5">
+          <span class="hint">Limite: ≤ 1 mL/L</span>
+        </div>
+        <div class="campo">
+          <label for="og">Óleos e graxas (mg/L)</label>
+          <input id="og" type="number" step="0.1" placeholder="Ex.: 15">
+          <span class="hint">Limite: ≤ 20 (minerais) / 50 (veg./anim.)</span>
+        </div>
+        <div class="campo">
+          <label for="amonia">Amônia – N-NH₃ (mg/L)</label>
+          <input id="amonia" type="number" step="0.1" placeholder="Ex.: 12">
+          <span class="hint">Limite: ≤ 20 mg/L</span>
+        </div>
+        <div class="campo">
+          <label for="fosforo">Fósforo total (mg/L)</label>
+          <input id="fosforo" type="number" step="0.1" placeholder="Ex.: 2.5">
+          <span class="hint">Limite: ≤ 4 mg/L (corpo doce)</span>
+        </div>
+      </div>
+    </section>
+
+    <button class="btn-analisar" onclick="analisar()">Analisar Efluente</button>
+  </div>
+
+  <!-- ========== LAUDO / RESULTADOS ========== -->
+  <section id="laudo" class="oculto">
+    <div class="laudo-header" id="laudoHeader"></div>
+    <div id="resumo"></div>
+    <div id="evidenciasLaudo"></div>
+    <div id="listaResultados"></div>
+    <div id="cargas"></div>
+
+    <div class="acoes">
+      <button class="btn-sec primario" onclick="window.print()">🖨️ Gerar laudo (PDF)</button>
+      <button class="btn-sec" onclick="exportarCSV()">⬇️ Exportar CSV</button>
+      <button class="btn-sec" onclick="salvarHistorico()">💾 Salvar no histórico</button>
+      <button class="btn-sec" onclick="novaAnalise()">🔄 Nova análise</button>
+    </div>
+
+    <div class="assinatura" id="assinatura"></div>
+  </section>
+
+  <!-- ========== HISTÓRICO ========== -->
+  <section id="historicoSection" class="oculto">
+    <h2 style="font-size:1.05rem;margin-bottom:12px">📋 Histórico de análises</h2>
+    <div id="historicoLista"></div>
+  </section>
+</div>
+
+<script>
+/* ============================================================
+   Referências normativas (CONAMA 430/2011, Art. 16)
+   ============================================================ */
+const REF = {
+  ph:      'CONAMA 430/2011, Art. 16, I',
+  temp:    'CONAMA 430/2011, Art. 16, II',
+  dbo:     'CONAMA 430/2011, Art. 16, III',
+  sst:     'CONAMA 430/2011, Art. 16, IV',
+  sed:     'CONAMA 430/2011, Art. 16, V',
+  og:      'CONAMA 430/2011, Art. 16, VI',
+  amonia:  'CONAMA 430/2011, Art. 16, VII',
+  fosforo: 'CONAMA 430/2011, Art. 16, VIII',
+  dqo:     'CONAMA 430/2011 (sem limite direto)'
+};
+
+let ultimoLaudo = null;
+let imagens = { amostra:null, laudo:null, assinatura:null };
+
+function $(id){ return document.getElementById(id); }
+function val(id){ const v = parseFloat($(id).value); return isNaN(v) ? null : v; }
+
+/* ============================================================
+   Upload + compressão de imagens
+   ============================================================ */
+function carregarImagem(input, alvo){
+  const file = input.files && input.files[0];
+  if (!file) return;
+
+  // comprime para caber no localStorage e acelerar OCR
+  const img = new Image();
+  img.onload = () => {
+    const maxW = 1400;
+    const scale = Math.min(1, maxW / img.width);
+    const canvas = document.createElement('canvas');
+    canvas.width  = Math.round(img.width  * scale);
+    canvas.height = Math.round(img.height * scale);
+    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+
+    imagens[alvo] = dataUrl;
+    mostrarPreview(alvo, dataUrl);
+
+    if (alvo === 'laudo') $('btnOcr').disabled = false;
+  };
+  img.src = URL.createObjectURL(file);
+}
+
+function mostrarPreview(alvo, dataUrl){
+  const mapa = { amostra:'previewAmostra', laudo:'previewLaudo', assinatura:'previewAssinatura' };
+  $(mapa[alvo]).innerHTML = `<img src="${dataUrl}" class="preview-img" alt="${alvo}">`;
+}
+
+/* ============================================================
+   OCR — carrega Tesseract.js sob demanda
+   ============================================================ */
+function carregarTesseract(){
+  if (typeof Tesseract !== 'undefined') return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('Falha ao carregar Tesseract.js'));
+    document.head.appendChild(s);
+  });
+}
+
+async function executarOCR(){
+  if (!imagens.laudo){ alert('Envie a foto do laudo do laboratório primeiro.'); return; }
+
+  const btn = $('btnOcr');
+  btn.disabled = true;
+  $('ocrProgress').classList.remove('oculto');
+  $('ocrDetalhes').classList.add('oculto');
+  $('ocrBarra').style.width = '5%';
+  $('ocrStatus').textContent = 'Carregando mecanismo de OCR (primeira vez pode demorar)…';
+
+  try {
+    await carregarTesseract();
+    $('ocrStatus').textContent = 'Extraindo texto do laudo…';
+    $('ocrBarra').style.width = '15%';
+
+    const worker = await Tesseract.createWorker('eng', 1, {
+      logger: m => {
+        if (m.status === 'recognizing text') {
+          $('ocrBarra').style.width = (15 + m.progress * 80).toFixed(0) + '%';
+          $('ocrStatus').textContent = `Extraindo texto… ${(m.progress*100).toFixed(0)}%`;
+        }
+      }
+    });
+
+    const { data: { text } } = await worker.recognize(imagens.laudo);
+    await worker.terminate();
+
+    $('ocrBarra').style.width = '100%';
+    $('ocrStatus').textContent = 'OCR concluído. Verifique os valores preenchidos.';
+
+    const preenchidos = preencherViaOCR(text);
+
+    $('ocrTexto').textContent = text;
+    $('ocrDetalhes').classList.remove('oculto');
+    $('ocrDetalhes').open = true;
+
+    setTimeout(() => {
+      alert(`OCR concluído.\n\nCampos preenchidos automaticamente: ${preenchidos.length}` +
+            (preenchidos.length ? `\n(${preenchidos.join(', ')})` : '') +
+            `\n\n⚠️ Revise cada valor antes de clicar em "Analisar".`);
+    }, 300);
+
+  } catch (e) {
+    alert('Não foi possível executar o OCR: ' + e.message +
+          '\n\nVerifique sua conexão (o mecanismo é baixado na primeira execução).');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/* ============================================================
+   Parser do texto OCR → preenche o formulário
+   ============================================================ */
+function preencherViaOCR(texto){
+  const preenchidos = [];
+  // normaliza: colapsa espaços, remove caracteres estranhos comuns em OCR
+  const t = texto
+    .replace(/[|¦]/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\r/g, '\n');
+
+  // Cada padrão tem o número no ÚLTIMO grupo de captura
+  const padroes = {
+    ph:       [/pH\b[^\d\n]{0,12}?([0-9]{1,2}[.,][0-9]{1,2})/i, /pH\b[^\d\n]{0,12}?([0-9]{1,2})/i],
+    temp:     [/(?:temperatura|temp\.?)[^\d\n]{0,20}?([0-9]{1,3}[.,]?[0-9]{0,2})/i],
+    dbo:      [/DBO(?!\s*entrada)[^\d\n]{0,40}?([0-9]{1,4}[.,]?[0-9]{0,2})/i],
+    dqo:      [/DQO[^\d\n]{0,40}?([0-9]{1,5}[.,]?[0-9]{0,2})/i],
+    sst:      [/(?:SST|s[óo]lidos?\s+suspensos?(?:\s+totais)?)[^\d\n]{0,30}?([0-9]{1,4}[.,]?[0-9]{0,2})/i],
+    sed:      [/(?:sediment[áa]veis?)[^\d\n]{0,30}?([0-9]{1,2}[.,]?[0-9]{0,2})/i],
+    og:       [/(?:[óo]leos?\s*e?\s*graxas?|O\s*&\s*G)[^\d\n]{0,30}?([0-9]{1,4}[.,]?[0-9]{0,2})/i],
+    amonia:   [/(?:am[ôo]nia|N[\s-]?NH3?)[^\d\n]{0,30}?([0-9]{1,4}[.,]?[0-9]{0,2})/i],
+    fosforo:  [/(?:f[óo]sforo)[^\d\n]{0,30}?([0-9]{1,4}[.,]?[0-9]{0,2})/i]
+  };
+
+  for (const [id, listaRegex] of Object.entries(padroes)){
+    for (const re of listaRegex){
+      const m = t.match(re);
+      if (m){
+        const bruto = m[m.length - 1];
+        // normaliza: se tem vírgula e ponto, o último separador é o decimal
+        let limpo = bruto.replace(/\./g, '').replace(',', '.');
+        if (!bruto.includes(',')) limpo = bruto.replace(/,/g, '.');
+        const num = parseFloat(limpo);
+        if (!isNaN(num) && num >= 0 && num < 100000){
+          $(id).value = num;
+          preenchidos.push(id);
+          break;
+        }
+      }
+    }
+  }
+
+  return preenchidos;
+}
+
+/* ============================================================
+   Análise principal
+   ============================================================ */
+function analisar(){
+  const dados = {
+    ponto: $('ponto').value.trim() || '—',
+    dataColeta: $('dataColeta').value || '—',
+    responsavel: $('responsavel').value.trim() || '—',
+    registro: $('registro').value.trim() || '—',
+    tipoLancamento: $('tipoLancamento').value,
+    segmento: $('segmento').value || '—',
+    vazao: val('vazao')
+  };
+
+  const resultados = [];
+
+  const ph = val('ph');
+  if (ph !== null){
+    const ok = ph >= 5 && ph <= 9;
+    resultados.push({
+      chave:'ph', nome:'pH', valor:ph, unidade:'',
+      status: ok ? 'aprovado' : 'reprovado',
+      criterio:'Faixa permitida: 5,0 a 9,0',
+      ref: REF.ph,
+      recomendacao: ok ? null : (ph < 5
+        ? 'pH ácido: verifique neutralização (adição de base) antes do lançamento.'
+        : 'pH alcalino: verifique neutralização (adição de ácido) antes do lançamento.')
+    });
+  }
+
+  const temp = val('temp');
+  if (temp !== null){
+    const ok = temp < 40;
+    resultados.push({
+      chave:'temp', nome:'Temperatura', valor:temp, unidade:'°C',
+      status: ok ? 'aprovado' : 'reprovado',
+      criterio:'Limite: inferior a 40 °C (variação no corpo receptor ≤ 3 °C)',
+      ref: REF.temp,
+      recomendacao: ok ? null : 'Temperatura elevada: verifique torres de resfriamento ou trocadores de calor antes do lançamento.'
+    });
+  }
+
+  const dboSaida = val('dbo');
+  const dboEntrada = val('dboEntrada');
+  let eficiencia = null;
+  if (dboSaida !== null){
+    const okLimite = dboSaida <= 120;
+    let ok = okLimite;
+    let criterio = 'Limite máximo: 120 mg/L';
+    if (dboEntrada !== null && dboEntrada > 0){
+      eficiencia = ((dboEntrada - dboSaida) / dboEntrada) * 100;
+      criterio = `Limite máximo: 120 mg/L · Eficiência de remoção: ${eficiencia.toFixed(1)}%`;
+      ok = okLimite || eficiencia >= 60;
+    }
+    resultados.push({
+      chave:'dbo', nome:'DBO (5 dias, 20 °C)', valor:dboSaida, unidade:'mg/L',
+      status: ok ? 'aprovado' : 'reprovado',
+      criterio,
+      ref: REF.dbo,
+      recomendacao: ok ? null : 'DBO acima do limite e eficiência de remoção inferior a 60%. Verifique aeração, tempo de detenção e nutrientes do tratamento biológico.'
+    });
+  }
+
+  const dqo = val('dqo');
+  if (dqo !== null){
+    let extra = '';
+    if (dboSaida !== null && dboSaida > 0){
+      const relacao = dqo / dboSaida;
+      extra = ` Relação DQO/DBO = ${relacao.toFixed(2)} (${relacao > 3 ? 'indica baixa biodegradabilidade — atenção' : 'biodegradabilidade adequada'}).`;
+    }
+    resultados.push({
+      chave:'dqo', nome:'DQO', valor:dqo, unidade:'mg/L',
+      status:'informativo',
+      criterio:'A CONAMA 430/2011 não estabelece limite máximo direto para DQO.' + extra,
+      ref: REF.dqo, recomendacao:null
+    });
+  }
+
+  const sst = val('sst');
+  if (sst !== null){
+    resultados.push({
+      chave:'sst', nome:'Sólidos Suspensos Totais', valor:sst, unidade:'mg/L',
+      status:'informativo',
+      criterio:'Não há limite numérico direto para efluentes industriais na 430. Para esgoto sanitário, exige-se remoção mínima de 20% após desarenação.',
+      ref: REF.sst, recomendacao: null
+    });
+  }
+
+  const sed = val('sed');
+  if (sed !== null){
+    const ok = sed <= 1;
+    resultados.push({
+      chave:'sed', nome:'Sólidos sedimentáveis', valor:sed, unidade:'mL/L',
+      status: ok ? 'aprovado' : 'reprovado',
+      criterio:'Limite: 1 mL/L em teste de 1h em cone Imhoff',
+      ref: REF.sed,
+      recomendacao: ok ? null : 'Sólidos sedimentáveis acima do limite: verifique decantação primária e remova material particulado.'
+    });
+  }
+
+  const og = val('og');
+  if (og !== null){
+    const ok = og <= 50;
+    resultados.push({
+      chave:'og', nome:'Óleos e graxas', valor:og, unidade:'mg/L',
+      status: ok ? 'aprovado' : 'reprovado',
+      criterio:'Limite: 20 mg/L (óleos minerais) / 50 mg/L (vegetais e animais)',
+      ref: REF.og,
+      recomendacao: ok ? null : 'Óleos e graxas acima do limite: verifique caixa separadora de água e óleo e flotação.'
+    });
+  }
+
+  const amonia = val('amonia');
+  if (amonia !== null){
+    const ok = amonia <= 20;
+    resultados.push({
+      chave:'amonia', nome:'Amônia (N-NH₃)', valor:amonia, unidade:'mg/L',
+      status: ok ? 'aprovado' : 'reprovado',
+      criterio:'Limite: 20 mg/L',
+      ref: REF.amonia,
+      recomendacao: ok ? null : 'Amônia acima do limite: verifique nitrificação no tratamento biológico ou ajuste de pH.'
+    });
+  }
+
+  const fosforo = val('fosforo');
+  if (fosforo !== null){
+    const ok = fosforo <= 4;
+    resultados.push({
+      chave:'fosforo', nome:'Fósforo total', valor:fosforo, unidade:'mg/L',
+      status: ok ? 'aprovado' : 'reprovado',
+      criterio:'Limite: 4 mg/L (fontes pontuais em corpos receptores de água doce)',
+      ref: REF.fosforo,
+      recomendacao: ok ? null : 'Fósforo acima do limite: verifique precipitação química (sais de ferro/alumínio) ou remoção biológica.'
+    });
+  }
+
+  if (resultados.length === 0){
+    alert('Preencha ao menos um parâmetro para análise.');
+    return;
+  }
+
+  // cargas poluidoras
+  const cargas = [];
+  if (dados.vazao && dados.vazao > 0){
+    if (dboSaida !== null) cargas.push({ nome:'DBO',   valor:(dboSaida * dados.vazao / 1000), unidade:'kg/dia' });
+    if (dqo !== null)      cargas.push({ nome:'DQO',   valor:(dqo      * dados.vazao / 1000), unidade:'kg/dia' });
+    if (sst !== null)      cargas.push({ nome:'SST',   valor:(sst      * dados.vazao / 1000), unidade:'kg/dia' });
+    if (amonia !== null)   cargas.push({ nome:'Amônia',valor:(amonia   * dados.vazao / 1000), unidade:'kg/dia' });
+    if (fosforo !== null)  cargas.push({ nome:'Fósforo',valor:(fosforo* dados.vazao / 1000), unidade:'kg/dia' });
+  }
+
+  ultimoLaudo = { dados, resultados, cargas, eficiencia, imagens: {...imagens}, timestamp: new Date().toISOString() };
+  renderizarLaudo(ultimoLaudo);
+}
+
+/* ============================================================
+   Renderização do laudo
+   ============================================================ */
+function renderizarLaudo(laudo){
+  const { dados, resultados, cargas, imagens: imgs } = laudo;
+  $('laudo').classList.remove('oculto');
+
+  $('laudoHeader').innerHTML = `
+    <h2>Laudo de conformidade — CONAMA 430/2011</h2>
+    <div class="meta">
+      <span><b>Ponto de coleta:</b> ${dados.ponto}</span>
+      <span><b>Data da coleta:</b> ${formatarData(dados.dataColeta)}</span>
+      <span><b>Responsável:</b> ${dados.responsavel}</span>
+      <span><b>Registro:</b> ${dados.registro}</span>
+      <span><b>Destino:</b> ${dados.tipoLancamento === 'corpo' ? 'Corpo receptor' : 'Rede pública'}</span>
+      <span><b>Segmento:</b> ${dados.segmento}</span>
+      ${dados.vazao ? `<span><b>Vazão:</b> ${dados.vazao} m³/dia</span>` : ''}
+      <span><b>Emitido em:</b> ${new Date().toLocaleString('pt-BR')}</span>
+    </div>
+  `;
+
+  const temReprovado = resultados.some(r => r.status === 'reprovado');
+  const resumo = $('resumo');
+  resumo.className = 'resumo-geral ' + (temReprovado ? 'reprovado' : 'aprovado');
+  resumo.textContent = temReprovado
+    ? '⚠️ Atenção: há parâmetros reprovados. O efluente NÃO atende integralmente à CONAMA 430/2011.'
+    : '✅ Efluente apto para descarte conforme os parâmetros avaliados da CONAMA 430/2011.';
+
+  // Evidências visuais
+  const ev = $('evidenciasLaudo');
+  let evHtml = '';
+  if (imgs.amostra){
+    evHtml += `<div class="evidencia-item">
+      <div class="titulo">📷 Ponto de coleta</div>
+      <img src="${imgs.amostra}" alt="Ponto de coleta">
+    </div>`;
+  }
+  if (imgs.laudo){
+    evHtml += `<div class="evidencia-item">
+      <div class="titulo">📄 Laudo do laboratório</div>
+      <img src="${imgs.laudo}" alt="Laudo do laboratório">
+    </div>`;
+  }
+  ev.innerHTML = evHtml ? `<div class="evidencias">${evHtml}</div>` : '';
+
+  // Cards de resultado
+  const lista = $('listaResultados');
+  lista.innerHTML = '';
+  resultados.forEach(r => {
+    const card = document.createElement('div');
+    card.className = `cartao-resultado ${r.status}`;
+    const icone = r.status === 'aprovado' ? '✓' : r.status === 'reprovado' ? '✗' : 'ℹ';
+
+    let html = `
+      <span class="icone ${r.status}">${icone}</span>
+      <div class="detalhes">
+        <div class="nome-parametro">${r.nome}</div>
+        <div class="valor">Valor inserido: ${formatarNumero(r.valor)} ${r.unidade}</div>
+        <div class="criterio">${r.criterio}</div>
+        <div class="ref">${r.ref}</div>
+    `;
+    if (r.recomendacao){
+      html += `<div class="recomendacao"><b>Recomendação:</b> ${r.recomendacao}</div>`;
+    }
+    html += `</div>`;
+    card.innerHTML = html;
+    lista.appendChild(card);
+  });
+
+  // Cargas
+  const divCargas = $('cargas');
+  if (cargas.length){
+    divCargas.innerHTML = `
+      <div class="cargas-card">
+        <h3>📊 Carga poluidora estimada (vazão ${dados.vazao} m³/dia)</h3>
+        <div class="cargas-lista">
+          ${cargas.map(c => `
+            <div class="carga-item">
+              ${c.nome}
+              <b>${c.valor.toFixed(2)} ${c.unidade}</b>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  } else {
+    divCargas.innerHTML = '';
+  }
+
+  // Assinatura
+  const assImg = imgs.assinatura
+    ? `<img src="${imgs.assinatura}" alt="Assinatura">`
+    : '';
+  $('assinatura').innerHTML = `
+    ${assImg}
+    <div class="linha"></div>
+    ${dados.responsavel} ${dados.registro !== '—' ? '— ' + dados.registro : ''}<br>
+    Responsável técnico
+  `;
+
+  $('laudo').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+/* ============================================================
+   Formatação
+   ============================================================ */
+function formatarData(d){
+  if (!d || d === '—') return '—';
+  const [y,m,day] = d.split('-');
+  return `${day}/${m}/${y}`;
+}
+function formatarNumero(n){
+  return Number(n).toLocaleString('pt-BR');
+}
+
+/* ============================================================
+   Exportação CSV
+   ============================================================ */
+function exportarCSV(){
+  if (!ultimoLaudo) return;
+  const { dados, resultados, cargas } = ultimoLaudo;
+
+  const linhas = [
+    ['Data','Ponto','Responsável','Registro','Destino','Vazão (m³/d)','Parâmetro','Valor','Unidade','Status','Critério','Referência']
+  ];
+  resultados.forEach(r => {
+    linhas.push([
+      formatarData(dados.dataColeta), dados.ponto, dados.responsavel, dados.registro,
+      dados.tipoLancamento, dados.vazao ?? '', r.nome, r.valor, r.unidade,
+      r.status, r.criterio, r.ref
+    ]);
+  });
+  cargas.forEach(c => {
+    linhas.push([
+      formatarData(dados.dataColeta), dados.ponto, dados.responsavel, dados.registro,
+      dados.tipoLancamento, dados.vazao ?? '',
+      'Carga ' + c.nome, c.valor.toFixed(3), c.unidade, 'informativo', '', ''
+    ]);
+  });
+
+  const csv = linhas.map(l =>
+    l.map(v => `"${String(v).replace(/"/g,'""')}"`).join(';')
+  ).join('\n');
+
+  const blob = new Blob(['\uFEFF' + csv], { type:'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `efluanalisa_${Date.now()}.csv`;
+  a.click();
+}
+
+/* ============================================================
+   Histórico (sem imagens para não estourar o localStorage)
+   ============================================================ */
+const HIST_KEY = 'efluanalisa_historico';
+
+function getHistorico(){
+  try { return JSON.parse(localStorage.getItem(HIST_KEY) || '[]'); }
+  catch { return []; }
+}
+function setHistorico(list){
+  localStorage.setItem(HIST_KEY, JSON.stringify(list));
+}
+
+function salvarHistorico(){
+  if (!ultimoLaudo) return;
+  const hist = getHistorico();
+  const temReprovado = ultimoLaudo.resultados.some(r => r.status === 'reprovado');
+  hist.unshift({
+    id: Date.now(),
+    timestamp: ultimoLaudo.timestamp,
+    ponto: ultimoLaudo.dados.ponto,
+    dataColeta: ultimoLaudo.dados.dataColeta,
+    responsavel: ultimoLaudo.dados.responsavel,
+    status: temReprovado ? 'reprovado' : 'aprovado',
+    temEvidencias: !!(imagens.amostra || imagens.laudo || imagens.assinatura),
+    resumo: ultimoLaudo.resultados.map(r => `${r.nome}: ${formatarNumero(r.valor)} ${r.unidade}`).join(' · ')
+  });
+  setHistorico(hist.slice(0, 30));
+  renderizarHistorico();
+  alert('Análise salva no histórico.');
+}
+
+function renderizarHistorico(){
+  const hist = getHistorico();
+  const section = $('historicoSection');
+  const lista = $('historicoLista');
+  if (!hist.length){ section.classList.add('oculto'); return; }
+  section.classList.remove('oculto');
+  lista.innerHTML = hist.map(h => `
+    <div class="hist-item">
+      <div>
+        <b>${h.ponto}</b> — ${formatarData(h.dataColeta)}
+        ${h.temEvidencias ? ' 📎' : ''}
+        <div class="info">${h.responsavel} · ${new Date(h.timestamp).toLocaleString('pt-BR')}</div>
+        <div class="info" style="font-size:.78rem;margin-top:2px">${h.resumo}</div>
+      </div>
+      <div style="display:flex;align-items:center">
+        <span class="status ${h.status}">${h.status === 'aprovado' ? '✓ Aprovado' : '✗ Reprovado'}</span>
+        <button class="btn-mini" onclick="removerHist(${h.id})" title="Remover">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function removerHist(id){
+  setHistorico(getHistorico().filter(h => h.id !== id));
+  renderizarHistorico();
+}
+
+/* ============================================================
+   Nova análise (mantém as fotos se quiser reaproveitar)
+   ============================================================ */
+function novaAnalise(){
+  $('laudo').classList.add('oculto');
+  document.querySelector('.input-area').scrollIntoView({ behavior:'smooth' });
+  ultimoLaudo = null;
+}
+
+/* ============================================================
+   Inicialização
+   ============================================================ */
+document.addEventListener('DOMContentLoaded', () => {
+  const hoje = new Date().toISOString().slice(0,10);
+  $('dataColeta').value = hoje;
+  renderizarHistorico();
+});
+</script>
+</body>
+</html>
